@@ -1,21 +1,25 @@
 # Cross-Sectional Skewness on S&P 500 Constituents
 
-A daily-rebalanced, long-only backtest of the "buy the highest realized skewness"
-idea, run on a **point-in-time reconstruction** of the S&P 500 universe.
+A long-only backtest of the "buy the highest realized skewness" idea, run on a
+**frozen 2010 S&P 500 constituent cohort reconstructed point-in-time**. The signal is
+re-ranked daily; the portfolio rebalances only when the selected set changes.
 
-**Result: the signal is real but appears to have decayed.** Over the full 2010–2026
-sample it beats an equal-weight benchmark by +0.07 Sharpe. Two control experiments
-confirm the effect is skewness rather than a volatility proxy. But splitting the
-sample shows the entire advantage sits in 2010–2015; since 2016 the strategy has
-underperformed the benchmark. Full numbers below.
+**Result: evidence of a cross-sectional skewness effect, but no robust evidence of
+tradeable alpha.** Over the full 2010–2026 sample the long leg beats an equal-weight
+benchmark by +0.07 Sharpe — smaller than the standard error of the estimate. Two
+sanity checks are consistent with skewness rather than a volatility proxy driving the
+spread, though neither is a formal attribution test. And splitting the sample puts the
+entire advantage in 2010–2015: since 2016 the strategy has underperformed the
+benchmark on a risk-adjusted basis.
 
 ---
 
 ## The idea
 
-Rank every index constituent by the skewness of its daily returns over a rolling
+Rank every name in the cohort by the skewness of its daily returns over a rolling
 60-day window. Hold the 10 with the fattest right tail, equal-weighted, and re-rank
-every day. The bet is that positive skewness is **persistent** — that a stock which
+every day. The portfolio only trades when the selected set changes — the ranking is
+daily, the rebalancing is conditional. The bet is that positive skewness is **persistent** — that a stock which
 just produced a large upside jump is more likely to produce another.
 
 The motivation is the arithmetic of compounding. Wealth compounds multiplicatively, so
@@ -57,11 +61,18 @@ are still in the index today** — roughly 40% of the universe disappeared over 
 sample. The missing names include Kodak, Sears, RadioShack, JCPenney, Yahoo,
 Monsanto, and a long tail of energy companies wiped out in 2015–2016.
 
-**What this repo does:** the universe is a reconstruction of index membership as of
-2010-01-01, built by taking the current constituent list and walking an index-changes
-table backwards in time, reversing each addition and removal. Delisted names are
-included and are selectable on any day they have sufficient valid data — a company
-delisted in 2016 contributes until 2016 and then disappears, with no look-ahead.
+**What this repo does:** the universe is the set of index constituents as of
+2010-01-01, reconstructed by taking the current membership list and walking an
+index-changes table backwards in time, reversing each addition and removal. Delisted
+names are kept and remain selectable on any day they have sufficient valid data — a
+company delisted in 2016 contributes until 2016 and then disappears, with no
+look-ahead.
+
+**This is a frozen cohort, not a dynamic index.** The membership is fixed at
+2010-01-01 and never updated: names added to the S&P 500 after that date are absent
+for the whole sample, and names removed stay in the pool until their data runs out.
+That is a deliberate simplification, and it means the backtest is not a simulation of
+tracking the index. It is a simulation of ranking a fixed 2010 large-cap cohort.
 
 **What it does not fix:** Yahoo Finance no longer carries price history for many
 delisted tickers. Of 498 requested symbols, **123 (24.7%) return nothing at all**. The
@@ -96,7 +107,7 @@ still corrupted and no other metric should be read.
 
 | Component | Choice |
 |---|---|
-| Universe | 498 S&P 500 constituents as of 2010-01-01 (point-in-time); 123 return no data, 362 usable after blacklist |
+| Universe | Frozen cohort of 497 S&P 500 constituents as of 2010-01-01, reconstructed point-in-time; ~123 return no data, ~362 usable after blacklist |
 | Period | 2010-03-19 → 2026-08-13 (4,178 trading days) |
 | Signal | Rolling 60-day skewness of daily returns, minimum 50 valid observations |
 | Selection | Top 10, equal-weighted |
@@ -104,6 +115,8 @@ still corrupted and no other metric should be read.
 | Execution lag | 2 days between last signal observation and trade |
 | Costs | 3 bps per side, applied to realized turnover |
 | Weight drift | Modelled — positions are not silently re-equalized for free each day |
+| Rebalancing | Conditional: only when the selected set changes |
+| Missing returns | A name with no valid return for the day cannot be held; the position is force-exited at the last observed close |
 | Benchmarks | Equal-weight of the same universe (primary), SPY (secondary) |
 
 The equal-weight benchmark matters more than SPY. It carries the *same* residual
@@ -119,30 +132,29 @@ roughly 3,500% to 1,878%.
 
 ## Results
 
-| | Total | CAGR | Vol | Sharpe | MaxDD |
-|---|---|---|---|---|---|
-| Strategy, gross | 1,536% | 18.58% | 19.88% | 0.96 | −39.06% |
-| **Strategy, net of costs** | 1,392% | **17.91%** | 19.88% | **0.93** | −39.26% |
-| Equal-weight universe | 890% | 15.00% | 18.20% | **0.86** | −40.53% |
-| SPY buy & hold | 791% | 14.26% | 17.12% | **0.87** | −33.72% |
+Every figure below comes from a single run of `skew_backtest.py`. All three legs are
+evaluated on identical data in one pass, so the comparison is exact.
 
-Sharpe ratios use rf = 0.
+| Strategy | CAGR | Vol | Sharpe | MaxDD | Turnover | ΔSharpe vs EW |
+|---|---|---|---|---|---|---|
+| **High skewness** (thesis) | 17.90% | 19.88% | **0.93** | −39.26% | 1,878% | **+0.07** |
+| Low skewness (check) | 9.32% | 20.32% | 0.54 | −50.49% | 1,931% | −0.32 |
+| High volatility (check) | 23.52% | 40.34% | 0.72 | −67.37% | 1,198% | −0.14 |
+| Equal-weight cohort | 15.00% | 18.20% | 0.86 | −40.53% | — | — |
+| SPY buy & hold | 14.26% | 17.12% | 0.87 | −33.72% | — | — |
 
-- Annual turnover: 1,878% of NAV (buys + sells)
-- Annual cost drag at 3 bps/side: 0.56%
-- Trading occurs on 28% of days
-- **Excess CAGR vs equal-weight: +2.91%**
-- **Excess Sharpe vs equal-weight: +0.07**
+Sharpe ratios use rf = 0. Costs are 3 bps per side on realized turnover; the annual
+drag on the thesis leg is 0.56%, and it trades on 28% of days.
 
 ### Cost sensitivity
 
-| Cost per side | Strategy CAGR | vs equal-weight |
+| Cost per side | High-skew CAGR | vs equal-weight |
 |---|---|---|
-| 0 bps | 18.58% | +3.58% |
-| 1 bps | 18.35% | +3.36% |
-| 3 bps | 17.91% | +2.91% |
-| 5 bps | 17.47% | +2.47% |
-| 10 bps | 16.37% | +1.37% |
+| 0 bps | 18.57% | +3.57% |
+| 1 bps | 18.35% | +3.35% |
+| 3 bps | 17.90% | +2.90% |
+| 5 bps | 17.46% | +2.46% |
+| 10 bps | 16.36% | +1.36% |
 
 Turnover is high but the edge does not evaporate until well past 10 bps per side.
 
@@ -169,41 +181,35 @@ event does not transform the track record.
 
 ---
 
-## Control experiments
+## What the control legs tell us
 
-A positive result on its own proves little. Two controls test whether the signal is
-what it claims to be, and a third cut tests whether it persists. All three are run by
-`skew_backtest_3legs.py`, which evaluates every leg on identical data in a single pass.
-
-| Strategy | CAGR | Vol | Sharpe | MaxDD | Turnover | ΔSharpe vs EW |
-|---|---|---|---|---|---|---|
-| **High skewness** (thesis) | 17.91% | 19.88% | **0.93** | −39.26% | 1,878% | **+0.07** |
-| Low skewness (control) | 9.32% | 20.30% | 0.54 | −50.18% | 1,924% | −0.32 |
-| High volatility (control) | 23.63% | 40.28% | 0.73 | −67.05% | 1,169% | −0.13 |
-| Equal-weight universe | 15.00% | 18.20% | 0.86 | −40.53% | — | — |
-| SPY buy & hold | 14.26% | 17.12% | 0.87 | −33.72% | — | — |
-
-**Both controls pass.**
+**Both sanity checks come out in the expected direction.**
 
 Ranking on the *lowest* skewness produces a materially worse portfolio — Sharpe 0.54
-against 0.93, with a drawdown eleven points deeper. The asymmetry between the two
-tails is real, and on this universe it runs in the direction the thesis predicts
-rather than the one the lottery-stock literature would suggest. If the strategy were
-merely picking up volatility, both extremes of the ranking would look similar; they
-do not.
+against 0.93, with a drawdown eleven points deeper. The spread between the two tails
+is wide, and on this cohort it runs in the direction the thesis predicts rather than
+the one the lottery-stock literature would suggest. If the ranking were merely sorting
+on volatility, both extremes would look similar; they do not.
 
 Ranking on raw volatility, ignoring skewness entirely, delivers the highest CAGR in
 the table — 23.63% — but at 40% volatility and a −67% drawdown. Risk-adjusted it lands
-below the equal-weight benchmark. So skewness is not a roundabout way of buying
-volatility: it selects something the volatility ranking misses.
+below the equal-weight benchmark.
+
+**What these do and do not establish.** They are sanity checks, not an attribution.
+They rule out the crudest alternative explanation — that the sort is a disguised
+volatility tilt — and they show the two tails behave differently. They do not
+establish that skewness is the *driver*. Doing that properly requires cross-sectional
+regressions with controls for size, value, momentum, beta and idiosyncratic
+volatility, which this repo does not run. Read the spread as suggestive, not as
+identification.
 
 ### Subperiods
 
 | Period | High skew | Low skew | High vol | Equal-weight | ΔSharpe (high skew) |
 |---|---|---|---|---|---|
-| 2010–2015 | 21.24% / Sh 1.17 | 5.38% / Sh 0.39 | −2.89% / Sh 0.06 | 13.86% / Sh 0.84 | **+0.33** |
-| 2016–2021 | 19.08% / Sh 0.90 | 14.32% / Sh 0.69 | 62.87% / Sh 1.27 | 18.62% / Sh 0.94 | **−0.04** |
-| 2022–2026 | 12.49% / Sh 0.70 | 8.03% / Sh 0.49 | 17.09% / Sh 0.59 | 11.89% / Sh 0.76 | **−0.06** |
+| 2010–2015 | 21.24% / Sh 1.17 | 5.38% / Sh 0.39 | −2.82% / Sh 0.06 | 13.86% / Sh 0.84 | **+0.33** |
+| 2016–2021 | 19.05% / Sh 0.90 | 14.31% / Sh 0.69 | 62.64% / Sh 1.27 | 18.62% / Sh 0.94 | **−0.04** |
+| 2022–2026 | 12.49% / Sh 0.70 | 8.05% / Sh 0.49 | 16.84% / Sh 0.58 | 11.89% / Sh 0.76 | **−0.06** |
 
 This is where the full-sample number falls apart. **The entire edge sits in
 2010–2015.** Across both later subperiods the strategy underperforms the equal-weight
@@ -218,9 +224,9 @@ subperiods — making it the most stable finding in the whole exercise.
 
 ## Honest reading
 
-**The signal exists.** The gap between the high- and low-skewness legs is large,
-consistent, and survives a volatility control. Realized skewness is picking up
-something real in the cross-section.
+**Something is there.** The gap between the high- and low-skewness legs is large and
+consistent, and it survives the volatility check. Whether realized skewness is the
+cause, or a proxy for something correlated with it, this design cannot say.
 
 **It is not currently tradeable.** Over the last decade the long leg has not beaten a
 naive equal-weight portfolio of the same universe. Whatever the effect was worth, it
@@ -230,7 +236,7 @@ was worth it before 2016.
 Sharpe estimate over 16 years is roughly 1/√16 ≈ 0.25 — nearly four times the measured
 +0.07. Taken alone, that number is not statistically distinguishable from zero.
 
-**And the CAGR advantage is partly leverage.** The strategy returns +2.91% more per
+**And the CAGR advantage is partly leverage.** The strategy returns +2.90% more per
 year than the benchmark, but runs at 19.88% volatility against 18.20%. Roughly a third
 of the excess return is compensation for extra risk rather than skill.
 
@@ -245,6 +251,19 @@ exclusion filter, or as the short side of a spread.
 
 ---
 
+## Repository contents
+
+```
+skew_backtest.py   Everything: universe, signal, cost model, three legs,
+                   data diagnostics and subperiod decomposition
+README.md          This file
+LICENSE            MIT
+```
+
+One file, no dependencies between files. Copy it and run it.
+
+---
+
 ## Limitations
 
 Read these before citing any number above.
@@ -256,6 +275,23 @@ Read these before citing any number above.
 - **Incomplete membership reconstruction.** The index-changes source records roughly
   11–19 changes per year against an actual ~20–25. Reconstruction quality degrades
   going backwards and is unusable before ~2007.
+- **The reconstruction has at least one known defect.** An earlier version of the
+  cohort wrongly included Meta/Facebook, which did not go public until May 2012 and
+  joined the index in December 2013. It has been removed. The walk-back reverses index
+  additions and removals but does not reverse ticker renames, and every rename is a
+  place where a similar error could hide. Others may remain.
+- **No delisting returns.** When a holding's data ends, the position is exited at the
+  last observed close. A bankruptcy and a takeover at a premium are therefore
+  indistinguishable, and the terminal loss on a failure is never taken. The script
+  counts how often this guard fires: **1 name-day on the high-skew leg, 14 on
+  low-skew, 68 on high-volatility** over 4,178 trading days. The exposure is
+  negligible for the thesis leg and concentrated, as one would expect, in the leg
+  that holds the most fragile names — but the guard exists because without it those
+  positions would have been silently marked flat.
+- **Sanity checks are not attribution.** The high/low skew spread and the volatility
+  control rule out the crudest alternative explanation, but establishing skewness as
+  the driver would require cross-sectional regressions with standard factor controls,
+  which are not run here.
 - **The blacklist is in-sample.** Excluded symbols were identified by inspecting
   diagnostics on this same data. They are objectively corrupted series (recycled
   tickers covering two different companies), not names selected on performance — but
