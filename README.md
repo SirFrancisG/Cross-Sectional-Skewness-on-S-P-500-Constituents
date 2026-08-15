@@ -192,7 +192,7 @@ the one the lottery-stock literature would suggest. If the ranking were merely s
 on volatility, both extremes would look similar; they do not.
 
 Ranking on raw volatility, ignoring skewness entirely, delivers the highest CAGR in
-the table — 23.63% — but at 40% volatility and a −67% drawdown. Risk-adjusted it lands
+the table — 23.52% — but at 40% volatility and a −67% drawdown. Risk-adjusted it lands
 below the equal-weight benchmark.
 
 **What these do and do not establish.** They are sanity checks, not an attribution.
@@ -268,7 +268,7 @@ One file, no dependencies between files. Copy it and run it.
 
 Read these before citing any number above.
 
-- **Residual survivorship bias.** 123 of 498 reconstructed constituents (24.7%) return
+- **Residual survivorship bias.** 123 of 497 reconstructed constituents (24.7%) return
   no data from Yahoo Finance. Delisting returns are absent entirely: a stock that goes
   to zero and one acquired at a premium both simply stop appearing in the data, with
   no terminal return recorded.
