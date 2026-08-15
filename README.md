@@ -245,41 +245,6 @@ exclusion filter, or as the short side of a spread.
 
 ---
 
-## Repository contents
-
-```
-skew_backtest.py         Main backtest: signal, hysteresis, cost model, diagnostics
-skew_backtest_3legs.py   Three-leg comparison (high skew / low skew / high vol)
-                         plus the subperiod decomposition
-README.md                This file
-LICENSE                  MIT
-```
-
----
-
-## Running it
-
-```bash
-git clone https://github.com/[YOUR-USERNAME]/[REPO-NAME].git
-cd [REPO-NAME]
-pip install yfinance pandas numpy quantstats
-python skew_backtest.py
-python skew_backtest_3legs.py
-```
-
-The first run downloads ~500 tickers and caches prices to `prices_2010-01-01.pkl`;
-subsequent runs start in seconds, and both scripts share the same cache. Delete the
-file to re-download.
-
-Expect a large number of download failures on the first run — those are the delisted
-names, and their absence is the main remaining source of bias.
-
-Output: a console report with data diagnostics, the metrics table, the sanity check
-and cost sensitivity grid, plus a `report_skewness.html` tearsheet (quantstats)
-benchmarked against SPY.
-
----
-
 ## Limitations
 
 Read these before citing any number above.
